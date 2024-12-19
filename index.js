@@ -1,31 +1,77 @@
 const http = require('http');
 const url = require('url');
+const mysql = require('mysql2/promise');
 
-const server = http.createServer((req, res) => {
+
+const dbConfig = {
+  host: 'localhost',
+  user: 'root',
+  password: '', 
+  database: 'ChatBotTests'
+};
+
+const server = http.createServer(async (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
   const query = parsedUrl.query;
+  const method = req.method;
 
-  res.writeHead(200, { 'Content-Type': 'application/json' });
+  let body = '';
+  req.on('data', chunk => {
+    body += chunk.toString();
+  });
 
-  if (pathname === '/static') {
-    res.end(JSON.stringify({ header: 'Hello', body: 'Octagon NodeJS Test' }));
-  } else if (pathname === '/dynamic') {
-    const a = parseFloat(query.a);
-    const b = parseFloat(query.b);
-    const c = parseFloat(query.c);
+  req.on('end', async () => {
+    try {
+      const connection = await mysql.createConnection(dbConfig);
 
-    if (isNaN(a) || isNaN(b) || isNaN(c)) {
-      res.end(JSON.stringify({ header: 'Error' }));
-    } else {
-      const result = (a * b * c) / 3;
-      res.end(JSON.stringify({ header: 'Calculated', body: result }));
+      if (pathname === '/getAllItems' && method === 'GET') {
+          const [rows] = await connection.execute('SELECT * FROM Items');
+          res.end(JSON.stringify(rows));
+
+      } else if (pathname === '/addItem' && method === 'POST') {
+          const { name, desc } = query;
+          if (!name || !desc) {
+              res.end(JSON.stringify(null));
+              return;
+          }
+          await connection.execute('INSERT INTO Items (name, desc) VALUES (?, ?)', [name, desc]);
+          res.end(JSON.stringify({id: connection.lastInsertId(), name, desc}));
+
+      } else if (pathname === '/deleteItem' && method === 'POST') {
+          const { id } = query;
+          if (!id || isNaN(parseInt(id))) {
+              res.end(JSON.stringify(null));
+              return;
+          }
+          const [result] = await connection.execute('DELETE FROM Items WHERE id = ?', [id]);
+          res.end(JSON.stringify(result.affectedRows > 0 ? {} : {}));
+
+      } else if (pathname === '/updateItem' && method === 'POST') {
+          const { id, name, desc } = query;
+          if (!id || isNaN(parseInt(id)) || !name || !desc) {
+              res.end(JSON.stringify(null));
+              return;
+          }
+          const [result] = await connection.execute('UPDATE Items SET name = ?, desc = ? WHERE id = ?', [name, desc, id]);
+          if (result.affectedRows === 0) {
+              res.end(JSON.stringify({}));
+          } else {
+              const [[updatedItem]] = await connection.execute('SELECT * FROM Items WHERE id = ?', [id]);
+              res.end(JSON.stringify(updatedItem));
+          }
+
+      } else {
+          res.end(JSON.stringify({}));
+      }
+      connection.end();
+    } catch (error) {
+      console.error('Error:', error);
+      res.end(JSON.stringify(null));
     }
-  } else {
-    res.end(JSON.stringify({ header: 'Error', message: 'Unknown route' }));
-  }
+  });
 });
-
 
 const port = 3000;
 server.listen(port, () => {
