@@ -15,8 +15,11 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/help/, (msg) => {
   const helpText = `Список команд:\n\n` +
     `/help -  Показать этот список команд\n` +
-    `/site -  Ссылка на сайт Октагон\n` +
-    `/creator -  Информация о создателе бота`;
+    `/site -  Ссылка clear сайт Октагон\n` +
+    `/creator -  Информация о создателе бота\n` +
+    '/randomItem - Вывести случайный  предмет\n'+
+    '/deleteItem - Удалить предмет из БД\n'+
+    '/getItemByID - Вернуть объект из БД';
   bot.sendMessage(msg.chat.id, helpText);
 });
 
@@ -26,4 +29,57 @@ bot.onText(/\/site/, (msg) => {
 
 bot.onText(/\/creator/, (msg) => {
   bot.sendMessage(msg.chat.id, `Бот создан: ${yourName}`);
+});
+
+bot.onText(/\/randomItem/, async (msg) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT * FROM Items ORDER BY RAND() LIMIT 1');
+    connection.end();
+    if (rows.length > 0) {
+      const item = rows[0];
+      const response = `(${item.id}) - ${item.name}: ${item.desc}`;
+      bot.sendMessage(msg.chat.id, response);
+    } else {
+      bot.sendMessage(msg.chat.id, 'В базе данных нет элементов.');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    bot.sendMessage(msg.chat.id, 'Ошибка при получении случайного элемента.');
+  }
+});
+
+bot.onText(/\/deleteItem (.+)/, async (msg, match) => {
+  const itemId = match[1];
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [result] = await connection.execute('DELETE FROM Items WHERE id = ?', [itemId]);
+    connection.end();
+    if (result.affectedRows > 0) {
+      bot.sendMessage(msg.chat.id, 'Удачно');
+    } else {
+      bot.sendMessage(msg.chat.id, 'Ошибка: Элемент не найден.');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    bot.sendMessage(msg.chat.id, 'Ошибка при удалении элемента.');
+  }
+});
+bot.onText(/\/getItemByID (.+)/, async (msg, match) => {
+  const itemId = match[1];
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await connection.execute('SELECT * FROM Items WHERE id = ?', [itemId]);
+    connection.end();
+    if (rows.length > 0) {
+      const item = rows[0];
+      const response = `(${item.id}) - ${item.name}: ${item.desc}`;
+      bot.sendMessage(msg.chat.id, response);
+    } else {
+      bot.sendMessage(msg.chat.id, 'Ошибка: Элемент не найден.');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    bot.sendMessage(msg.chat.id, 'Ошибка при получении элемента.');
+  }
 });
