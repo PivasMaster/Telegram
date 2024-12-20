@@ -11,6 +11,8 @@
     "dependencies": {
         "mysql2": "^3.11.5",
         "node-telegram-bot-api": "^0.66.0",
-        "nodemon": "^3.0.1"
+        "nodemon": "^3.0.1",
+        "puppeteer": "^23.11.1",
+        "qrcode": "^1.5.4"
     }
 }

@@ -3,6 +3,8 @@ const TelegramBot = require('node-telegram-bot-api');
 
 const token = '7955694028:AAEDg782HLJJGv-PHhVMg0zdknnC2YvNMGA';
 const bot = new TelegramBot(token, {polling: true});
+const QRCode = require('qrcode');
+const puppeteer = require('puppeteer');
 
 
 const yourName = 'Черниговским Алекскеем';
@@ -82,4 +84,30 @@ bot.onText(/\/getItemByID (.+)/, async (msg, match) => {
     console.error('Error:', error);
     bot.sendMessage(msg.chat.id, 'Ошибка при получении элемента.');
   }
+});
+
+bot.onText(/!qr (.+)/, async (msg, match) => {
+  const text = match[1];
+  try {
+      const qrCode = await QRCode.toDataURL(text);
+      bot.sendPhoto(msg.chat.id, qrCode);
+  } catch (error) {
+      console.error('Error generating QR code:', error);
+      bot.sendMessage(msg.chat.id, 'Ошибка при генерации QR-кода.');
+  }
+});
+n
+bot.onText(/!c (.+)/, async (msg, match) => {
+    const url = match[1];
+    try {
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        await page.goto(url);
+        const screenshot = await page.screenshot({ type: 'png' });
+        await browser.close();
+        bot.sendPhoto(msg.chat.id, { source: screenshot });
+    } catch (error) {
+        console.error('Error generating website screenshot:', error);
+        bot.sendMessage(msg.chat.id, 'Ошибка при генерации скриншота.');
+    }
 });
